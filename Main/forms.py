@@ -1,33 +1,30 @@
 import re
 
 from bs4 import BeautifulSoup, Doctype
-from bootstrap3_datetime.widgets import DateTimePicker
-from django.forms import ModelForm, EmailField, ValidationError
-from django.forms import CharField, Textarea, CheckboxSelectMultiple
-from django.core.validators import URLValidator
-from django.utils.translation import gettext as _
 from django.conf import settings
+from django.core.validators import URLValidator
 from django.db.models import Q
+from django.forms import CharField, Textarea, ModelForm, EmailField, ValidationError
+from django.utils.translation import gettext as _
+from django_select2 import forms as s2forms
+from tempus_dominus.widgets import DateTimePicker
 
 from Main.models import TargetList, Target, Campaign, Attribute, Template
 
 
 class TargetsListForm(ModelForm):
-
     class Meta:
         model = TargetList
         fields = ['name']
 
 
 class NewTargetForm(ModelForm):
-
     class Meta:
         model = Target
         fields = ['mail_address']
 
 
 class AttributeForm(ModelForm):
-
     class Meta:
         model = Attribute
         fields = ['key', 'value']
@@ -389,6 +386,13 @@ class TestCampaignForm(ModelForm):
         fields = ['name']
 
 
+class TargetsListWidget(s2forms.ModelSelect2MultipleWidget):
+    search_fields = [
+        'name__icontains',
+        'author__user__email__icontains',
+    ]
+
+
 class CampaignForm(ModelForm):
     visible_users = None
 
@@ -418,18 +422,24 @@ class CampaignForm(ModelForm):
     class Meta:
         model = Campaign
         fields = [
-                    'name',
-                    'targets',
-                    'start_date',
-                    'end_date',
-                    'from_name',
-                    'from_domain',
-                    'display_name'
-                 ]
+            'name',
+            'targets',
+            'start_date',
+            'end_date',
+            'from_name',
+            'from_domain',
+            'display_name'
+        ]
+
+        dtp_option = {"format": "YYYY-MM-DD HH:mm"}
+        dtp_attrs = {
+            'append': 'fa fa-calendar',
+            'icon_toggle': True,
+        }
         widgets = {
-            'start_date': DateTimePicker(options={"format": "YYYY-MM-DD HH:mm"}),
-            'end_date': DateTimePicker(options={"format": "YYYY-MM-DD HH:mm"}),
-            'targets': CheckboxSelectMultiple()}
+            'start_date': DateTimePicker(options=dtp_option, attrs=dtp_attrs),
+            'end_date': DateTimePicker(options=dtp_option, attrs=dtp_attrs),
+            'targets': TargetsListWidget}
         labels = {
             'from_name': _('On behalf of'),
             'from_domain': _('Domain'),
@@ -443,12 +453,12 @@ class StandardCampaignForm(CampaignForm):
         self.fields['onclick_action'].required = True
         self.fields['onclick_action'].widget.attrs.update({'required': 'required'})
         mail_templates = Template.objects.filter(Q(template_type="1") & (
-                                                 Q(author__in=self.visible_users) | Q(public=True)
-                                                 ))
+                Q(author__in=self.visible_users) | Q(public=True)
+        ))
         self.fields['mail_template'].queryset = mail_templates
         onclick_action = Template.objects.filter(Q(template_type__in=["4", "5"]) & (
-                                                 Q(author__in=self.visible_users) | Q(public=True)
-                                                 ))
+                Q(author__in=self.visible_users) | Q(public=True)
+        ))
         self.fields['onclick_action'].queryset = onclick_action
 
     def clean_host_domain(self):
@@ -461,8 +471,8 @@ class StandardCampaignForm(CampaignForm):
 
     def clean_onclick_action(self):
         templates = Template.objects.filter(Q(template_type__in=["4", "5"]) & (
-                                            Q(author__in=self.visible_users) | Q(public=True)
-                                            ))
+                Q(author__in=self.visible_users) | Q(public=True)
+        ))
         template = self.cleaned_data["onclick_action"]
         if template not in templates:
             raise ValidationError(_("You are not allowed to use this template"))
@@ -471,8 +481,8 @@ class StandardCampaignForm(CampaignForm):
 
     def clean_mail_template(self):
         templates = Template.objects.filter(Q(template_type="1") & (
-                                            Q(author__in=self.visible_users) | Q(public=True)
-                                            ))
+                Q(author__in=self.visible_users) | Q(public=True)
+        ))
         template = self.cleaned_data["mail_template"]
         if template not in templates:
             raise ValidationError(_("You are not allowed to use this template"))
@@ -491,12 +501,12 @@ class StandardCampaignForm(CampaignForm):
 
     class Meta(CampaignForm.Meta):
         fields = CampaignForm.Meta.fields + [
-                                                "mail_template",
-                                                "enable_mail_tracker",
-                                                "onclick_action",
-                                                "host_subdomain",
-                                                "host_domain"
-                                            ]
+            "mail_template",
+            "enable_mail_tracker",
+            "onclick_action",
+            "host_subdomain",
+            "host_domain"
+        ]
 
         CampaignForm.Meta.labels.update({'onclick_action': _('Action after click')})
 
@@ -509,14 +519,14 @@ class AttachmentCampaignForm(CampaignForm):
         self.fields['attachment_template'].widget.attrs.update({'required': 'required'})
 
         mail_template = Template.objects.filter(Q(template_type="2") & (
-                                                Q(author__in=self.visible_users) | Q(public=True)
-                                                ))
+                Q(author__in=self.visible_users) | Q(public=True)
+        ))
 
         self.fields['mail_template'].queryset = mail_template
 
         atch_template = Template.objects.filter(Q(template_type="3") & (
-                                                Q(author__in=self.visible_users) | Q(public=True)
-                                                ))
+                Q(author__in=self.visible_users) | Q(public=True)
+        ))
 
         self.fields['attachment_template'].queryset = atch_template
 
@@ -532,8 +542,8 @@ class AttachmentCampaignForm(CampaignForm):
 
     def clean_mail_template(self):
         templates = Template.objects.filter(Q(template_type="2") & (
-                                            Q(author__in=self.visible_users) | Q(public=True)
-                                            ))
+                Q(author__in=self.visible_users) | Q(public=True)
+        ))
         template = self.cleaned_data["mail_template"]
         if template not in templates:
             raise ValidationError(_("You are not allowed to use this template"))
@@ -542,8 +552,8 @@ class AttachmentCampaignForm(CampaignForm):
 
     def clean_attachment_template(self):
         templates = Template.objects.filter(Q(template_type="3") & (
-                                            Q(author__in=self.visible_users) | Q(public=True)
-                                            ))
+                Q(author__in=self.visible_users) | Q(public=True)
+        ))
         template = self.cleaned_data["attachment_template"]
         if template not in templates:
             raise ValidationError(_("You are not allowed to use this template"))
@@ -552,11 +562,11 @@ class AttachmentCampaignForm(CampaignForm):
 
     class Meta(CampaignForm.Meta):
         fields = CampaignForm.Meta.fields + [
-                                                "mail_template",
-                                                "enable_mail_tracker",
-                                                "attachment_template",
-                                                "enable_attachment_tracker"
-                                            ]
+            "mail_template",
+            "enable_mail_tracker",
+            "attachment_template",
+            "enable_attachment_tracker"
+        ]
 
 
 class FakeFormCampaignForm(CampaignForm):
@@ -564,19 +574,19 @@ class FakeFormCampaignForm(CampaignForm):
     def __init__(self, user, *args, **kwargs):
         super(FakeFormCampaignForm, self).__init__(user, *args, **kwargs)
         mail_template = Template.objects.filter(Q(template_type="1") & (
-                                                Q(author__in=self.visible_users) | Q(public=True)
-                                                ))
+                Q(author__in=self.visible_users) | Q(public=True)
+        ))
         self.fields['mail_template'].queryset = mail_template
         fake_form = Template.objects.filter(Q(template_type="6") & (
-                                            Q(author__in=self.visible_users) | Q(public=True)))
+                Q(author__in=self.visible_users) | Q(public=True)))
         self.fields['fake_form'].queryset = fake_form
         self.fields['fake_form'].required = True
         self.fields['fake_form'].widget.attrs.update({'required': 'required'})
         self.fields['onclick_action'].required = True
         self.fields['onclick_action'].widget.attrs.update({'required': 'required'})
         onclick_action = Template.objects.filter(Q(template_type__in=["4", "5"]) & (
-                                                 Q(author__in=self.visible_users) | Q(public=True)
-                                                 ))
+                Q(author__in=self.visible_users) | Q(public=True)
+        ))
         self.fields['onclick_action'].queryset = onclick_action
 
     def clean_host_domain(self):
@@ -589,8 +599,8 @@ class FakeFormCampaignForm(CampaignForm):
 
     def clean_onclick_action(self):
         templates = Template.objects.filter(Q(template_type__in=["4", "5"]) & (
-                                            Q(author__in=self.visible_users) | Q(public=True)
-                                            ))
+                Q(author__in=self.visible_users) | Q(public=True)
+        ))
         template = self.cleaned_data["onclick_action"]
         if template not in templates:
             raise ValidationError(_("You are not allowed to use this template"))
@@ -599,8 +609,8 @@ class FakeFormCampaignForm(CampaignForm):
 
     def clean_mail_template(self):
         templates = Template.objects.filter(Q(template_type="1") & (
-                                            Q(author__in=self.visible_users) | Q(public=True)
-                                            ))
+                Q(author__in=self.visible_users) | Q(public=True)
+        ))
         template = self.cleaned_data["mail_template"]
         if template not in templates:
             raise ValidationError(_("You are not allowed to use this template"))
@@ -609,8 +619,8 @@ class FakeFormCampaignForm(CampaignForm):
 
     def clean_fake_form(self):
         templates = Template.objects.filter(Q(template_type="6") & (
-                                            Q(author__in=self.visible_users) | Q(public=True)
-                                            ))
+                Q(author__in=self.visible_users) | Q(public=True)
+        ))
         template = self.cleaned_data["fake_form"]
         if template not in templates:
             raise ValidationError(_("You are not allowed to use this template"))
@@ -629,12 +639,12 @@ class FakeFormCampaignForm(CampaignForm):
 
     class Meta(CampaignForm.Meta):
         fields = CampaignForm.Meta.fields + [
-                                                "mail_template",
-                                                "enable_mail_tracker",
-                                                "fake_form",
-                                                "onclick_action",
-                                                "host_subdomain", "host_domain"
-                                            ]
+            "mail_template",
+            "enable_mail_tracker",
+            "fake_form",
+            "onclick_action",
+            "host_subdomain", "host_domain"
+        ]
         CampaignForm.Meta.labels.update({
             'onclick_action': _('Action after submit'),
             'fake_form': _('Fake form to display')})
@@ -645,16 +655,16 @@ class FakeRansomCampaignForm(CampaignForm):
     def __init__(self, user, *args, **kwargs):
         super(FakeRansomCampaignForm, self).__init__(user, *args, **kwargs)
         mail_template = Template.objects.filter(Q(template_type="1") & (
-                                                Q(author__in=self.visible_users) | Q(public=True)
-                                                ))
+                Q(author__in=self.visible_users) | Q(public=True)
+        ))
 
         fake_ransom = Template.objects.filter(Q(template_type="7") & (
-                                              Q(author__in=self.visible_users) | Q(public=True)
-                                              ))
+                Q(author__in=self.visible_users) | Q(public=True)
+        ))
 
         onclick_action = Template.objects.filter(Q(template_type__in=["4", "5"]) & (
-                                                 Q(author__in=self.visible_users) | Q(public=True)
-                                                 ))
+                Q(author__in=self.visible_users) | Q(public=True)
+        ))
 
         self.fields['mail_template'].queryset = mail_template
         self.fields['fake_ransom'].queryset = fake_ransom
@@ -674,8 +684,8 @@ class FakeRansomCampaignForm(CampaignForm):
 
     def clean_onclick_action(self):
         templates = Template.objects.filter(Q(template_type__in=["4", "5"]) & (
-                                            Q(author__in=self.visible_users) | Q(public=True)
-                                            ))
+                Q(author__in=self.visible_users) | Q(public=True)
+        ))
         template = self.cleaned_data["onclick_action"]
         if template not in templates:
             raise ValidationError(_("You are not allowed to use this template"))
@@ -684,8 +694,8 @@ class FakeRansomCampaignForm(CampaignForm):
 
     def clean_mail_template(self):
         templates = Template.objects.filter(Q(template_type="1") & (
-                                            Q(author__in=self.visible_users) | Q(public=True)
-                                            ))
+                Q(author__in=self.visible_users) | Q(public=True)
+        ))
         template = self.cleaned_data["mail_template"]
         if template not in templates:
             raise ValidationError(_("You are not allowed to use this template"))
@@ -694,8 +704,8 @@ class FakeRansomCampaignForm(CampaignForm):
 
     def clean_fake_ransom(self):
         templates = Template.objects.filter(Q(template_type="7") & (
-                                            Q(author__in=self.visible_users) | Q(public=True)
-                                            ))
+                Q(author__in=self.visible_users) | Q(public=True)
+        ))
         template = self.cleaned_data["fake_ransom"]
         if template not in templates:
             raise ValidationError(_("You are not allowed to use this template"))
@@ -714,13 +724,13 @@ class FakeRansomCampaignForm(CampaignForm):
 
     class Meta(CampaignForm.Meta):
         fields = CampaignForm.Meta.fields + [
-                                                "mail_template",
-                                                "enable_mail_tracker",
-                                                "fake_ransom",
-                                                "onclick_action",
-                                                "host_subdomain",
-                                                "host_domain"
-                                            ]
+            "mail_template",
+            "enable_mail_tracker",
+            "fake_ransom",
+            "onclick_action",
+            "host_subdomain",
+            "host_domain"
+        ]
         CampaignForm.Meta.labels.update({
             'onclick_action': _('Action after redirect'),
             'fake_ransom': _('Fake ransom to display')})
